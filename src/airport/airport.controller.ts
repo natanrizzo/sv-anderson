@@ -36,7 +36,7 @@ export class AirportController {
     }
 
     @Delete(":id")
-    deleteAiport(
+    deleteAirport(
         @Param("id") id: number
     ) {
         return this.service.delete(id);
