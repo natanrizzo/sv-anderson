@@ -1,5 +1,6 @@
-import { Controller, Get, Put } from "@nestjs/common";
+import { Body, Controller, Get, Put } from "@nestjs/common";
 import { UserService } from "./user.service";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 @Controller("users")
 export class UserController {
@@ -13,7 +14,9 @@ export class UserController {
     }
 
     @Put("me")
-    async updateMe() {
-        
+    async updateMe(
+        @Body() updateData: UpdateUserDto
+    ) {
+        return this.service.update(1, updateData); // TODO: implement getCurrentUser
     }
 }
