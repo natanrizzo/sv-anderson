@@ -2,14 +2,18 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
-export class UserService {
+export class AirportService {
     constructor(
         private readonly prisma: PrismaService
     ) {}
 
-    findById(id: number) {
-        return this.prisma.user.findUnique({
-            where: { id }
-        });
-    }
+    create() {}
+
+    getAll() {}
+
+    getOneById(id: number) {}
+
+    update(id: number) {}
+
+    delete(id: number) {}
 }
