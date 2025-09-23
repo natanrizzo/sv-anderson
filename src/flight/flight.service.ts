@@ -1,9 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { UpdateFlightTypeDto } from "./dto/update-flight-type.dto";
 import { CreateFlightTypeDto } from "./dto/create-flight-type.dto";
 import { CreateFlightDto } from "./dto/create-flight.dto";
 import { SearchFlightDto } from "./dto/search-flight.dto";
+import { UpdateFlightDto } from "./dto/update-flight.dto";
 
 @Injectable()
 export class FlightService {
@@ -14,9 +15,7 @@ export class FlightService {
     async createFlight(flight: CreateFlightDto) {
         const { stopovers, crewMemberIds, ...flightData } = flight;
 
-        // Create the flight with stopovers and crew members in a transaction
         return await this.prisma.$transaction(async (tx) => {
-            // Create the main flight record
             const createdFlight = await tx.flight.create({
                 data: {
                     ...flightData,
@@ -35,7 +34,6 @@ export class FlightService {
                 }
             });
 
-            // Create stopovers if provided
             if (stopovers && stopovers.length > 0) {
                 await tx.stopover.createMany({
                     data: stopovers.map(stopover => ({
@@ -47,7 +45,6 @@ export class FlightService {
                 });
             }
 
-            // Assign crew members if provided
             if (crewMemberIds && crewMemberIds.length > 0) {
                 await tx.flightCrew.createMany({
                     data: crewMemberIds.map(employeeId => ({
@@ -57,7 +54,6 @@ export class FlightService {
                 });
             }
 
-            // Return the complete flight with all relations
             return await tx.flight.findUnique({
                 where: { id: createdFlight.id },
                 include: {
@@ -90,7 +86,6 @@ export class FlightService {
     async searchFlights(searchParams: SearchFlightDto) {
         const { originAirportCode, destinationAirportCode, departureDate } = searchParams;
 
-        // First, find the airport IDs for the given codes
         const [originAirport, destinationAirport] = await Promise.all([
             this.prisma.airport.findFirst({
                 where: { code: originAirportCode }
@@ -108,7 +103,6 @@ export class FlightService {
             throw new Error(`Destination airport with code '${destinationAirportCode}' not found`);
         }
 
-        // Create date range for the departure date (start and end of day)
         const searchDate = new Date(departureDate);
         const startOfDay = new Date(searchDate);
         startOfDay.setHours(0, 0, 0, 0);
@@ -116,7 +110,6 @@ export class FlightService {
         const endOfDay = new Date(searchDate);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Search for flights
         return await this.prisma.flight.findMany({
             where: {
                 originAirportId: originAirport.id,
@@ -155,6 +148,27 @@ export class FlightService {
         });
     }
 
+    async findPublicById(id: number) {
+        const flight = await this.prisma.flight.findUnique({
+            where: { id },
+            include: {
+                originAirport: true,
+                destinationAirport: true,
+                stopovers: {
+                    include: { airport: true },
+                    orderBy: { order: "asc" },
+                },
+                aircraft: { include: { aircraftType: true } }
+            },
+        });
+
+        if (!flight) {
+            throw new NotFoundException(`Flight with ID ${id} not found.`)
+        }
+
+        return flight;
+    }
+
     getSeatMap(flightId: number) {
         return this.prisma.flight.findUnique({
             where: { id: flightId },
@@ -164,13 +178,64 @@ export class FlightService {
         })
     }
 
+    findAllAdmin() {
+        return this.prisma.flight.findMany({
+          orderBy: { departureDateTime: 'desc' },
+        });
+    }
+
+    async findAdminById(id: number) {
+        const flight = await this.prisma.flight.findUnique({
+          where: { id },
+          include: {
+            originAirport: true,
+            destinationAirport: true,
+            stopovers: { include: { airport: true } },
+            crewMembers: { include: { employee: true } },
+            aircraft: { include: { aircraftType: true } },
+            flightType: true,
+          },
+        });
+        if (!flight) {
+          throw new NotFoundException(`Flight with ID ${id} not found.`);
+        }
+        return flight;
+    }
+    
+    async updateFlight(id: number, updateFlightDto: UpdateFlightDto) {
+        await this.findAdminById(id);
+        
+        const {
+            aircraftId,
+            crewMemberIds,
+            destinationAirportId,
+            flightTypeId,
+            originAirportId,
+            stopovers,
+            ...updateData 
+        } = updateFlightDto;
+        
+        return this.prisma.flight.update({
+          where: { id },
+          data: { 
+            ...updateData,
+        },
+        });
+      }
+
+    async removeFlight(id: number) {
+        await this.findAdminById(id);
+
+        return this.prisma.flight.delete({ where: { id } });
+    }
+
     createFlightType(flightType: CreateFlightTypeDto) {
         return this.prisma.flightType.create({
             data: flightType
         })
     }
 
-    getAllFlightType() {
+    getAllFlightTypes() {
         return this.prisma.flight.findMany();
     }
 
