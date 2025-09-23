@@ -1,8 +1,11 @@
 import { Body, Controller, Get, Param, Post, Request } from "@nestjs/common";
 import { ReservationService } from "./reservation.service";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
+import { Roles } from "src/auth/decorators/roles.decorator";
+import { UserRole } from "generated/prisma";
 
 @Controller("reservations")
+@Roles(UserRole.PASSENGER)
 export class ReservationController {
     constructor(
         private readonly service: ReservationService

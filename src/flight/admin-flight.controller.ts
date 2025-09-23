@@ -4,7 +4,10 @@ import { CreateFlightDto } from "./dto/create-flight.dto";
 import { UpdateFlightDto } from "./dto/update-flight.dto";
 import { UpdateFlightTypeDto } from "./dto/update-flight-type.dto";
 import { CreateFlightTypeDto } from "./dto/create-flight-type.dto";
+import { Roles } from "src/auth/decorators/roles.decorator";
+import { UserRole } from "generated/prisma";
 
+@Roles(UserRole.MAINTAINER)
 @Controller("admin")
 export class AdminFlightController {
     constructor(
